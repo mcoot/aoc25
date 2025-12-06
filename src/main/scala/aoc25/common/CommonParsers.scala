@@ -30,6 +30,9 @@ object CommonParsers:
 
   def string(string: String): Parser[String] =
     Parser.string(string).map(_ => string)
+    
+  def bool[A](on: Parser[A], off: Parser[A]): Parser[Boolean] =
+    on.map(_ => true) | off.map(_ => false)
 
   def pair[A, B](a: Parser[A], b: Parser[B], sep: Parser0[Any]): Parser[(A, B)] =
     (a <* sep) ~ b

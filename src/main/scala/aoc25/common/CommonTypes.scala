@@ -1,6 +1,7 @@
 package aoc25.common
 
 import scala.annotation.targetName
+import scala.collection.mutable.ArrayBuffer
 
 // Extension pair -> Point2D
 extension (p: (Long, Long))
@@ -50,12 +51,58 @@ case class Point2D(x: Long, y: Long):
     val Point2D(maxX, maxY) = maxBound
     x >= minX && x <= maxX && y >= minY && y <= maxY
 
+  def inGrid[T](g: Grid2D[T]): Boolean = inBounds(Point2D(0, 0), Point2D(g.width - 1, g.height - 1))
+
   def constrainToBounds(minBound: Point2D, maxBound: Point2D): Point2D =
     Point2D(Math.max(minBound.x, Math.min(maxBound.x, x)), Math.max(minBound.y, Math.min(maxBound.y, y)))
+
+  def constraintToGrid[T](g: Grid2D[T]): Point2D = constrainToBounds(Point2D(0, 0), Point2D(g.width - 1, g.height - 1))
 
   // Modulo the components independently, useful for wrapping
   // named floorMod rather than % because it does sane (Math.floorMod) handling of negatives
   def floorMod(modulus: Point2D): Point2D =
     Point2D(Math.floorMod(x, modulus.x), Math.floorMod(y, modulus.y))
 
- 
+
+class Grid2D[T](val grid: ArrayBuffer[ArrayBuffer[T]]):
+  def this(l: List[List[T]]) = this(ArrayBuffer.from(l.map(ArrayBuffer.from(_))))
+
+  def height: Int = grid.size
+  def width: Int = if height > 0 then grid(0).size else 0
+
+  def apply(x: Int, y: Int): T = grid(y)(x)
+  def apply(p: (Int, Int)): T = apply(p._1, p._2)
+  def apply(p: Point2D): T = apply((p.x.toInt, p.y.toInt))
+
+  def set(x: Int, y: Int, v: T): Unit =
+    grid(y)(x) = v
+  def set(p: (Int, Int), v: T): Unit =
+    set(p._1, p._2, v)
+  def set(p: Point2D, v: T): Unit =
+    set((p.x.toInt, p.y.toInt), v)
+
+  def foldOverCells[B](z: B)(f: (T, (Int, Int), B) => B): B =
+    grid.zipWithIndex.foldRight(z) { case ((row, y), rz) =>
+      row.zipWithIndex.foldRight(rz) { case ((cell, x), b) =>
+        f(cell, (x, y), b)
+      }
+    }
+
+  def countCells(f: (T, (Int, Int)) => Boolean): Long =
+    foldOverCells(0) { (cell, loc, count) =>
+      if f(cell, loc) then
+        count + 1
+      else
+        count
+    }
+
+  def forEachWithIndex(f: (T, (Int, Int)) => Unit): Unit =
+    grid.zipWithIndex.foreach { (row, y) =>
+      row.zipWithIndex.foreach { (cell, x) =>
+        f(cell, (x, y))
+      }
+    }
+
+  def copy(): Grid2D[T] =
+    Grid2D(ArrayBuffer.from(grid.map(_.clone())))
+
