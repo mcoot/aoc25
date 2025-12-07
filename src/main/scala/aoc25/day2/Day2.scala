@@ -7,14 +7,15 @@ import cats.parse.Parser
 def numDigits(n: Long): Int =
   n.toString.length
 
+def digitSegment(n: Long, idx: Int, len: Int): Long =
+  n.toString.substring(idx, idx+len).toLong
+
 def exp(power: Int): Long =
   Math.pow(10, power).toLong
 
 case class Range(start: Long, end: Long):
   def constrainToSameOrderOfMagnitudeRanges(): List[Range] =
-
-    // If the start and the end+1 are different orders of magnitude (and not directly adjacent even orders),
-    // then there are intermediate even-digit ranges; let's split to ranges each over a single order of magnitude
+    // Split to ranges each over a single order of magnitude
     // Note there's a bug here if the end wasn't constrained before _and_ end+1 is a diff order of magnitude...
     // but this doesn't occur in the input
     (for
@@ -22,27 +23,35 @@ case class Range(start: Long, end: Long):
     yield
       val s = Math.max(exp(i-1), start)
       val e = Math.min(exp(numDigits(s))-1, end)
-      println((s, e))
       Range(s, e)).toList
 
-  def findHalfMatchIds(): List[Long] =
-    // This only works on a range which is within an order of magnitude, and even
+  def findMatchIdsWithRepetitions(numSegments: Int): List[Long] =
+    // This only works on a range which is within a single order of magnitude
     assert(numDigits(start) == numDigits(end))
-    if numDigits(start) % 2 != 0 then
+    // Can't repeat the pattern if the digit count doesn't divide into the segments
+    if numDigits(start) % numSegments != 0 then
       return List.empty
-    val halfLen = Math.floorDiv(numDigits(start), 2)
+    val patternLen = Math.floorDiv(numDigits(start), numSegments)
 
-    val startFirstHalf = Math.floorDiv(start, exp(halfLen))
-    val startSecondHalf = Math.floorMod(start, exp(halfLen))
-    val lowestMatchIdHalf = if startSecondHalf <= startFirstHalf then startFirstHalf else startFirstHalf + 1
+    val startSegments = (0 until numDigits(start) by patternLen)
+      .map(i => digitSegment(start, i, patternLen))
+    var firstMatchPattern = startSegments.last
+    for seg <- startSegments.reverse do
+      if seg >= firstMatchPattern then
+        firstMatchPattern = seg
+      else
+        firstMatchPattern = seg + 1
 
-    val endFirstHalf = Math.floorDiv(end, exp(halfLen))
-    val endSecondHalf = Math.floorMod(end, exp(halfLen))
-    val highestMatchIdHalf = if endFirstHalf <= endSecondHalf then endFirstHalf else endFirstHalf - 1
+    val endSegments = (0 until numDigits(end) by patternLen)
+      .map(i => digitSegment(end, i, patternLen))
+    var lastMatchPattern = endSegments(0)
+    for seg <- endSegments.reverse do
+      if seg <= lastMatchPattern then
+        lastMatchPattern = seg
+      else
+        lastMatchPattern = seg - 1
 
-    // Now we have the highest and lowest patterns... we'll see every pattern between,
-    // so matches is just the values between, inclusive, duplicated
-    (lowestMatchIdHalf to highestMatchIdHalf).map(half => half + half * exp(halfLen)).toList
+    (firstMatchPattern to lastMatchPattern).map(_.toString.repeat(numSegments).toLong).toList
 
 
 object Day2 extends SolutionWithParser[List[Range], Long, Long]:
@@ -61,14 +70,21 @@ object Day2 extends SolutionWithParser[List[Range], Long, Long]:
     val matches = for
       r <- input
       constrainedR <- r.constrainToSameOrderOfMagnitudeRanges()
-      matchId <- constrainedR.findHalfMatchIds()
+      matchId <- constrainedR.findMatchIdsWithRepetitions(2)
     yield
       matchId
     matches.sum
 
 
   override def solvePart2(input: List[Range]): Long =
-    0L
+    val matches = for
+      r <- input
+      constrainedR <- r.constrainToSameOrderOfMagnitudeRanges()
+      numSegments <- 2 to numDigits(constrainedR.end)
+      matchId <- constrainedR.findMatchIdsWithRepetitions(numSegments)
+    yield
+      matchId
+    matches.distinct.sum
 
 @main def run(): Unit = Day2.run()
 
