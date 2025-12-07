@@ -11,27 +11,25 @@ def exp(power: Int): Long =
   Math.pow(10, power).toLong
 
 case class Range(start: Long, end: Long):
-  def constrainToEvenDigitCountRanges(): List[Range] =
-    // Bring the start up to an even digit count
-    val finalStart = if numDigits(start) % 2 == 1 then exp(numDigits(start)) else start
-    // Bring the end down to an even digit count
-    val finalEnd = if numDigits(end) % 2 == 1 then exp(numDigits(end)-1)-1 else end
+  def constrainToSameOrderOfMagnitudeRanges(): List[Range] =
 
     // If the start and the end+1 are different orders of magnitude (and not directly adjacent even orders),
     // then there are intermediate even-digit ranges; let's split to ranges each over a single order of magnitude
     // Note there's a bug here if the end wasn't constrained before _and_ end+1 is a diff order of magnitude...
     // but this doesn't occur in the input
     (for
-      i <- numDigits(finalStart) to numDigits(finalEnd+1) by 2
+      i <- numDigits(start) to numDigits(end+1)
     yield
-      val s = Math.max(exp(i-1), finalStart)
-      val e = Math.min(exp(numDigits(s))-1, finalEnd)
+      val s = Math.max(exp(i-1), start)
+      val e = Math.min(exp(numDigits(s))-1, end)
+      println((s, e))
       Range(s, e)).toList
 
   def findHalfMatchIds(): List[Long] =
     // This only works on a range which is within an order of magnitude, and even
     assert(numDigits(start) == numDigits(end))
-    assert(numDigits(start) % 2 == 0)
+    if numDigits(start) % 2 != 0 then
+      return List.empty
     val halfLen = Math.floorDiv(numDigits(start), 2)
 
     val startFirstHalf = Math.floorDiv(start, exp(halfLen))
@@ -62,7 +60,7 @@ object Day2 extends SolutionWithParser[List[Range], Long, Long]:
   override def solvePart1(input: List[Range]): Long =
     val matches = for
       r <- input
-      constrainedR <- r.constrainToEvenDigitCountRanges()
+      constrainedR <- r.constrainToSameOrderOfMagnitudeRanges()
       matchId <- constrainedR.findHalfMatchIds()
     yield
       matchId
@@ -76,5 +74,6 @@ object Day2 extends SolutionWithParser[List[Range], Long, Long]:
 
 
 @main def test(): Unit = Day2.test()
+
 
 @main def testConstraint(): Unit = Day2.test("constraint")
