@@ -62,6 +62,12 @@ object CommonParsers:
   def withTrimmedStartingSpaces[A](p: Parser[A]): Parser[A] =
     (spaces.?).with1 *> p
 
+  def withTrimmedEndingSpaces[A](p: Parser[A]): Parser[A] =
+    p <* spaces.?
+
+  def withTrimmedSpaces[A](p: Parser[A]): Parser[A] =
+    withTrimmedStartingSpaces(withTrimmedEndingSpaces(p))
+
   def grid[A](p: Parser[A]): Parser[List[List[A]]] =
     lineSeparated(p.rep(1)).map { rows =>
       rows.map(_.toList)
